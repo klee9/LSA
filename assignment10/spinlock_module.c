@@ -134,12 +134,12 @@ static int __init mod_init(void)
 	int i;
 	static int tids[NUM_THREAD];
 	
-	printk("Entering spinlock module...\n");
+	printk(KERN_INFO "Entering spinlock module...\n");
 	for (i = 0; i < NUM_THREAD; i++) {
-		thread_ids[i] = i + 1;
+		tids[i] = i + 1;
 		threads[i] = kthread_create(work_fn, &tids[i], "T%d", i+1);
 		
-		if (IS_ERR(threads[i]) {
+		if (IS_ERR(threads[i])) {
 			printk(KERN_ERR "Failed to create thread #%d\n", i+1);
 			threads[i] = NULL;
 		}
