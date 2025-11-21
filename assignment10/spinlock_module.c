@@ -10,8 +10,7 @@
 #include "ocalclock.h"
 #define NUM_THREAD 4
 
-spinlock_t slock; // spinlock
-spin_lock_init(&slock);
+DEFINE_SPINLOCK(slock);
 
 static struct task_struct *threads[NUM_THREAD];
 
@@ -22,12 +21,6 @@ struct my_node {
 	int data;
 	struct list_head list;
 };
-
-//struct mutex mlock; // mutex lock
-//mutex_init(&mlock);
-
-//struct rw_semaphore rwsem; // rw sema
-//init_rwsem(&rwsem);
 
 LIST_HEAD(my_list);
 
