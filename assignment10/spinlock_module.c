@@ -38,53 +38,49 @@ void set_iter_range(int thread_id, int range_bound[])
 void *add_to_list(int thread_id, int range_bound[])
 {
 	int i;
-	struct my_node *first = NULL;
-	struct timespec localclock[2];
-	
-	// acquire lock for sequential insertion
-	spin_lock(&slock);
-	
-	for (i = range_bound[0]; i < range_bound[0] + 250000; i++) {
-		struct my_node *new = kmalloc(sizeof(struct my_node), GFP_KERNEL);
-		new->data = i;
-		if (!first) 
-			first = new;
-		
-		getrawmonotonic(&localclock[0]);
-		list_add_tail(&new->list, &my_list);
-		getrawmonotonic(&localclock[1]);
-		ocalclock(localclock, &add_time, &add_cnt);
-	}
-	
-	spin_unlock(&slock);
-	
-	return first;
+    struct my_node *first = NULL;
+    struct my_node *new_node = NULL;
+    struct timespec localclock[2];
+    
+    for (i = range_bound[0]; i <= range_bound[1]; i++) {
+        new_node = kmalloc(sizeof(struct my_node), GFP_KERNEL);
+        new_node->data = i;
+        
+        getrawmonotonic(&localclock[0]);
+        spin_lock(&slock);
+        list_add_tail(&new_node->list, &my_list);
+        spin_unlock(&slock);
+        getrawmonotonic(&localclock[1]);
+        ocalclock(localclock, &add_time, &add_cnt);
+
+		if (!first) first = new_node; 
+    }
+    
+    return first;
 }
 
 int search_list(int thread_id, void *data, int range_bound[])
-{	
+{
 	struct timespec localclock[2];
 	struct my_node *cur = (struct my_node *) data, *tmp;
 	
 	// start from "data" and search 250K nodes
 	spin_lock(&slock);
-	
+
+	getrawmonotonic(&localclock[0]);
 	list_for_each_entry_safe(cur, tmp, &my_list, list) {
-		getrawmonotonic(&localclock[0]);
-		if (cur->data == range_bound[1]) {
+		if (cur->data >= range_bound[0] && cur->data <= range_bound[1]) {
+			search_cnt++;
+		}
+		if (searched == range_bound[1] - range_bound[0]) {
 			printk("thread #%d searched range: %d ~ %d\n", 
 						thread_id, range_bound[0], range_bound[1]);
 			getrawmonotonic(&localclock[1]);
 			ocalclock(localclock, &search_time, &search_cnt);
 			spin_unlock(&slock);
-			return cur->data;
+			return 0;
 		}
-		getrawmonotonic(&localclock[1]);
-		ocalclock(localclock, &search_time, &search_cnt);
 	}
-	
-	spin_unlock(&slock);
-	
 	return 0;
 }
 
@@ -94,19 +90,19 @@ int delete_from_list(int thread_id, int range_bound[])
 	struct timespec localclock[2];
 	
 	spin_lock(&slock);
-	
+	getrawmonotonic(&localclock[0]);
 	list_for_each_entry_safe(cur, tmp, &my_list, list) {
-		getrawmonotonic(&localclock[0]);
 		if (cur->data >= range_bound[0] && cur->data <= range_bound[1]) {
+			del_cnt++;
 			list_del(&cur->list);
 			kfree(cur);
-			getrawmonotonic(&localclock[1]);
-			ocalclock(localclock, &del_time, &del_cnt);
 		}
 	} 
 	
 	printk("thread #%d deleted range: %d ~ %d", 
 				thread_id, range_bound[0], range_bound[1]);
+	getrawmonotonic(&localclock[1]);
+	ocalclock(localclock, &del_time, &del_cnt);
 	spin_unlock(&slock);
 	return 0;
 }
