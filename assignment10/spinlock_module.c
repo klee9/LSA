@@ -132,9 +132,18 @@ static int work_fn(void *data)
 static int __init mod_init(void)
 {	
 	int i;
+	static int tids[NUM_THREAD];
+	
 	printk("Entering spinlock module...\n");
 	for (i = 0; i < NUM_THREAD; i++) {
-		threads[i] = kthread_create(work_fn,(void*)(long)(i+1),"T%d",i+1);
+		thread_ids[i] = i + 1;
+		threads[i] = kthread_create(work_fn, &tids[i], "T%d", i+1);
+		
+		if (IS_ERR(threads[i]) {
+			printk(KERN_ERR "Failed to create thread #%d\n", i+1);
+			threads[i] = NULL;
+		}
+		
 		wake_up_process(threads[i]);
 	}
 	return 0;
@@ -164,5 +173,8 @@ static void __exit mod_exit(void)
 	printk("exiting spinlock module...\n");
 }
 
-module_init(mod_init)
-module_exit(mod_exit)
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("20212329 Keon Lee");
+
+module_init(mod_init);
+module_exit(mod_exit);
