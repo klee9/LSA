@@ -72,7 +72,7 @@ int search_list(int thread_id, void *data, int range_bound[])
 		if (cur->data >= range_bound[0] && cur->data <= range_bound[1]) {
 			search_cnt++;
 		}
-		if (searched == range_bound[1] - range_bound[0]) {
+		if (search_cnt == range_bound[1] - range_bound[0]) {
 			printk("thread #%d searched range: %d ~ %d\n", 
 						thread_id, range_bound[0], range_bound[1]);
 			getrawmonotonic(&localclock[1]);
@@ -132,15 +132,7 @@ static int __init mod_init(void)
 	
 	printk(KERN_INFO "Entering spinlock module...\n");
 	for (i = 0; i < NUM_THREAD; i++) {
-		tids[i] = i + 1;
-		threads[i] = kthread_create(work_fn, &tids[i], "T%d", i+1);
-		
-		if (IS_ERR(threads[i])) {
-			printk(KERN_ERR "Failed to create thread #%d\n", i+1);
-			threads[i] = NULL;
-		}
-		
-		wake_up_process(threads[i]);
+		threads[i] = kthread_run(work_fn, (void *)(long)(i+1), "T%d", i+1);
 	}
 	return 0;
 }
