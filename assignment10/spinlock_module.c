@@ -75,16 +75,16 @@ int search_list(int thread_id, void *data, int range_bound[])
     struct my_node *cur = (struct my_node *) data, *tmp;
 
 				// start from "data" iterate 250k nodes
-				spin_lock(&slock);
 				for (i = range_bound[0]; i <= range_bound[1]; i++) {
+								spin_lock(&slock);
 								getrawmonotonic(&localclock[0]);
 								cur = list_next_entry(cur, list);
 								if (&cur->list == &my_list)
-								    cur = list_next_entry(cur, list);
+								    cur = list_first_entry(&my_list, struct my_node, list);
 								getrawmonotonic(&localclock[1]);
 								calclock(localclock, &search_time, &search_cnt);
+								spin_unlock(&slock);
 				}
-				spin_unlock(&slock);
     
     printk(KERN_INFO "thread #%d searched range: %d ~ %d", thread_id, range_bound[0], range_bound[1]);
     return 0;
