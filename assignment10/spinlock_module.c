@@ -123,7 +123,7 @@ int delete_from_list(int thread_id, int range_bound[])
 static int work_fn(void *data)
 {
 	int range_bound[2];
-	int thread_id = *(int *) data;
+	int thread_id = (int)data;
 	
 	set_iter_range(thread_id, range_bound);
 	void *ret = add_to_list(thread_id, range_bound);
@@ -142,7 +142,7 @@ static int __init mod_init(void)
 	printk(KERN_INFO "Entering spinlock module...\n");
     int i;
 	for (i = 0; i < NUM_THREAD; i++) {
-		threads[i] = kthread_run(work_fn, (void *)(long)(i+1), "T%d", i+1);
+		threads[i] = kthread_run(work_fn, (void *)(int)(i+1), "T%d", i+1);
 	}
 	return 0;
 }
