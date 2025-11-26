@@ -92,27 +92,32 @@ int search_list(int thread_id, void *data, int range_bound[])
 
 int delete_from_list(int thread_id, int range_bound[])
 {
-    unsigned long long local_found = 0;
-	struct my_node *cur, *tmp;
-	struct timespec localclock[2];
-	
-	spin_lock(&slock);
-	getrawmonotonic(&localclock[0]);
-	list_for_each_entry_safe(cur, tmp, &my_list, list) {
-		if (cur->data >= range_bound[0] && cur->data <= range_bound[1]) {
-			local_found++;
-			list_del(&cur->list);
+    struct my_node *cur, *tmp;
+    struct timespec localclock[2];
+    
+    int count = 0; 
+
+    spin_lock(&slock);
+    list_for_each_entry_safe(cur, tmp, &my_list, list) {
+        // check if the node's data is within the target range
+        if (cur->data >= range_bound[0] && cur->data <= range_bound[1]) {
+            getrawmonotonic(&localclock[0]);
+            list_del(&cur->list);
             getrawmonotonic(&localclock[1]);
-	        ocalclock(localclock, &del_time, &del_cnt);
-		}
-        if (local_found == 250000) {
-            break;
+            calclock(localclock, &del_time, &del_cnt);
+            
+            kfree(cur);
+            count++;
         }
-	} 
-	printk("thread #%d deleted range: %d ~ %d", thread_id, range_bound[0], range_bound[1]);
-	spin_unlock(&slock);
-	return 0;
+    }
+    spin_unlock(&slock);
+    
+    printk(KERN_INFO "thread #%d deleted %d nodes in range: %d ~ %d\n", 
+           thread_id, count, range_bound[0], range_bound[1]);
+    
+    return 0;
 }
+
 
 /* per-thread function */
 static int work_fn(void *data)
