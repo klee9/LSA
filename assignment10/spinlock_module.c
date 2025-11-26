@@ -68,27 +68,25 @@ void *add_to_list(int thread_id, int range_bound[])
     return first;
 }
 
-int search_list(int thread_id, int range_bound[])
+int search_list(int thread_id, void *data, int range_bound[])
 {
-	unsigned long long local_found = 0;
-    struct timespec localclock[2];
-    struct my_node *cur, *tmp;
+    int i;
+				struct timespec localclock[2];
+    struct my_node *cur = (struct my_node *) data, *tmp;
 
-    spin_lock(&slock);
-    getrawmonotonic(&localclock[0]);
-
-    list_for_each_entry_safe(cur, tmp, &my_list, list) {
-        if (cur->data >= range_bound[0] && cur->data <= range_bound[1]) {
-            local_found++;
-            getrawmonotonic(&localclock[1]);
-            ocalclock(localclock, &search_time, &search_cnt);
-        }
-        if (local_found == 250000) {
-            break;
-        }
-    }
-    printk("thread #%d searched range: %d ~ %d", thread_id, range_bound[0], range_bound[1]);
-    spin_unlock(&slock);
+				// start from "data" iterate 250k nodes
+				spin_lock(&slock);
+				for (i = range_bound[0]; i <= range_bound[1]; i++) {
+								getrawmonotonic(&localclock[0]);
+								cur = list_next_entry(cur, list);
+								if (&cur->list == &my_list)
+								    cur = list_next_entry(cur, list);
+								getrawmonotonic(&localclock[1]);
+								calclock(localclock, &search_time, &search_cnt);
+				}
+				spin_unlock(&slock);
+    
+    printk(KERN_INFO "thread #%d searched range: %d ~ %d", thread_id, range_bound[0], range_bound[1]);
     return 0;
 }
 
