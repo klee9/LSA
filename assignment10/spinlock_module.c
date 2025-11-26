@@ -7,7 +7,7 @@
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/list.h>
-#include "ocalclock.h"
+#include "calclock.h"
 #define NUM_THREAD 4
 
 DEFINE_SPINLOCK(slock);
@@ -37,24 +37,33 @@ void set_iter_range(int thread_id, int range_bound[])
 /* insertion */
 void *add_to_list(int thread_id, int range_bound[])
 {
-	int i;
+    int i;
     struct my_node *first = NULL;
     struct my_node *new_node = NULL;
     struct timespec localclock[2];
-    
-    for (i = range_bound[0]; i <= range_bound[1]; i++) {
-        new_node = kmalloc(sizeof(struct my_node), GFP_KERNEL);
-        new_node->data = i;
 
+    // a local list head
+    struct list_head local_list;
+    INIT_LIST_HEAD(&local_list);
+
+    // insert to temp list
+    for (i = range_bound[0]; i <= range_bound[1]; i++) {
+					   getrawmonotonic(&localclock[0]);
+        new_node = kmalloc(sizeof(struct my_node), GFP_KERNEL);
+        if (!new_node) break;
+        new_node->data = i;
+								
+        // save reference to the first node
         if (!first) first = new_node; 
-        
-        spin_lock(&slock);
-        getrawmonotonic(&localclock[0]);
-        list_add_tail(&new_node->list, &my_list);
-        getrawmonotonic(&localclock[1]);
-        ocalclock(localclock, &add_time, &add_cnt);
-        spin_unlock(&slock);
+        list_add_tail(&new_node->list, &local_list);
+								getrawmonotonic(&localclock[1]);
+        calclock(localclock, &add_time, &add_cnt);
     }
+    
+    // splice
+    spin_lock(&slock);
+    list_splice_tail(&local_list, &my_list);
+    spin_unlock(&slock);
     
     return first;
 }
@@ -114,8 +123,8 @@ static int work_fn(void *data)
 	int thread_id = *(int *) data;
 	
 	set_iter_range(thread_id, range_bound);
-	add_to_list(thread_id, range_bound);
-	search_list(thread_id, range_bound);
+	void *ret = add_to_list(thread_id, range_bound);
+	search_list(thread_id, ret, range_bound);
 	delete_from_list(thread_id, range_bound);
 	
 	while(!kthread_should_stop()) {
